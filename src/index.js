@@ -37,7 +37,7 @@ async function deployFacets (facetNames) {
   return deployed
 }
 
-async function deployDiamond ({
+async function deploy ({
   diamondName,
   owner,
   facetNames,
@@ -85,7 +85,7 @@ function inFacets (selector, facets) {
   return false
 }
 
-async function upgradeDiamond ({
+async function upgrade ({
   diamondAddress,
   facetNames,
   selectorsToRemove = undefined,
@@ -190,9 +190,9 @@ async function upgradeDiamond ({
 }
 
 exports.FacetCutAction = FacetCutAction
-exports.upgradeDiamond = upgradeDiamond
+exports.upgrade = upgrade
 exports.getSelectors = getSelectors
 exports.deployFacets = deployFacets
-exports.deployDiamond = deployDiamond
+exports.deploy = deploy
 exports.inFacets = inFacets
-exports.upgradeDiamond = upgradeDiamond
+exports.upgrade = upgrade
