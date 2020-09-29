@@ -22,7 +22,7 @@ function getSelectors (contract) {
   return selectors
 }
 
-async function deployFacets (...facetNames) {
+async function deployFacets (facetNames) {
   console.log('--')
   const deployed = []
   for (const name of facetNames) {
@@ -37,7 +37,16 @@ async function deployFacets (...facetNames) {
   return deployed
 }
 
-async function deployDiamond (diamondName, owner, facets, ...otherArgs) {
+async function deployDiamond ({
+  diamondName,
+  owner,
+  facetNames,
+  otherArgs
+}) {
+  if (arguments.length === 1) {
+    throw Error(`Requires only 1 map argument. ${arguments.length} arguments used.`)
+  }
+  const facets = await deployFacets(facetNames)
   const diamondFactory = await ethers.getContractFactory(diamondName)
   const diamondCut = []
   console.log('--')
@@ -62,6 +71,7 @@ async function deployDiamond (diamondName, owner, facets, ...otherArgs) {
   )
   await deployedDiamond.deployed()
   console.log(`${diamondName} deployed: ${deployedDiamond.address}`)
+  console.log('Transaction hash:' + deployedDiamond.hash)
   console.log('--')
   return deployedDiamond
 }
@@ -82,12 +92,11 @@ async function upgradeDiamond ({
   initFacetName = undefined,
   initArgs = undefined
 }) {
-  const diamondCutFacet = (
-    await ethers.getContractFactory('DiamondCutFacet')
-  ).attach(diamondAddress)
-  const diamondLoupeFacet = (
-    await ethers.getContractFactory('DiamondLoupeFacet')
-  ).attach(diamondAddress)
+  if (arguments.length === 1) {
+    throw Error(`Requires only 1 map argument. ${arguments.length} arguments used.`)
+  }
+  const diamondCutFacet = ethers.getContractAt('DiamondCutFacet', diamondAddress)
+  const diamondLoupeFacet = ethers.getContractAt('DiamondLoupeFacet', diamondAddress)
 
   const diamondCut = []
   const existingFacets = await diamondLoupeFacet.facets()
