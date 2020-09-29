@@ -1,6 +1,6 @@
 {
   "name": "diamonds",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Javascript library to deploy and upgrade diamonds.",
   "main": "index.js",
   "scripts": {
