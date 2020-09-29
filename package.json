@@ -1,0 +1,30 @@
+{
+  "name": "diamonds",
+  "version": "1.0.0",
+  "description": "Javascript library to deploy and upgrade diamonds.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mudgen/diamonds.js.git"
+  },
+  "keywords": [
+    "ethereum",
+    "solidity",
+    "upgrades",
+    "blockchain",
+    "smartcontracts",
+    "tools"
+  ],
+  "author": "Nick Mudge",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mudgen/diamonds.js/issues"
+  },
+  "homepage": "https://github.com/mudgen/diamonds.js#readme",
+  "devDependencies": {
+    "standard": "^14.3.4"
+  }
+}
