@@ -65,13 +65,13 @@ async function deploy ({
   console.log('--')
   console.log(`Deploying ${diamondName}`)
   const deployedDiamond = await diamondFactory.deploy(
-    owner,
     diamondCut,
+    owner,
     ...otherArgs
   )
   await deployedDiamond.deployed()
   console.log(`${diamondName} deployed: ${deployedDiamond.address}`)
-  console.log('Transaction hash:' + deployedDiamond.hash)
+  console.log('Transaction hash:' + deployedDiamond.deployTransaction.hash)
   console.log('--')
   return deployedDiamond
 }
