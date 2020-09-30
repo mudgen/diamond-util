@@ -87,6 +87,124 @@ function inFacets (selector, facets) {
 
 async function upgrade ({
   diamondAddress,
+  diamondCut,
+  initFacetName = undefined,
+  initArgs
+}) {
+  if (arguments.length === 1) {
+    throw Error(`Requires only 1 map argument. ${arguments.length} arguments used.`)
+  }
+  const diamondCutFacet = ethers.getContractAt('DiamondCutFacet', diamondAddress)
+  const diamondLoupeFacet = ethers.getContractAt('DiamondLoupeFacet', diamondAddress)
+  const existingFacets = await diamondLoupeFacet.facets()
+  const facetFactories = new Map()
+
+  console.log('Facet Signatures and Selectors: ')
+  for (const facet of diamondCut) {
+    const functions = new Map()
+    const selectors = []
+    console.log('Facet: ' + facet)
+    for (const signature of facet[2]) {
+      const selector = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(signature)).slice(0, 10)
+      console.log(`Function: ${selector} ${signature}`)
+      selectors.push(selector)
+      functions.set(selector, signature)
+    }
+    console.log('')
+    if (facet[1] === FacetCutAction.Remove) {
+      if (facet[0]) {
+        throw (Error(`Can't remove functions because facet name must have a false value not ${facet[0]}.`))
+      }
+      facet[0] = ethers.constants.AddressZero
+      for (const selector of selectors) {
+        if (!inFacets(selector, existingFacets)) {
+          const signature = functions.get(selector)
+          throw Error(`Can't remove '${signature}'. It doesn't exist in deployed diamond.`)
+        }
+      }
+      facet[2] = selectors
+    } else if (facet[1] === FacetCutAction.Replace) {
+      let facetFactory = facetFactories.get(facet[0])
+      if (!facetFactory) {
+        facetFactory = await ethers.getContractFactory(facet[0])
+        facetFactories.set(facet[0], facetFactory)
+      }
+      for (const signature of facet[2]) {
+        if (!Object.prototype.hasOwnProperty.call(facetFactory.interface.functions, signature)) {
+          throw (Error(`Can't replace '${signature}'. It doesn't exist in ${facet[0]} source code.`))
+        }
+      }
+      for (const selector of selectors) {
+        if (!inFacets(selector, existingFacets)) {
+          const signature = functions.get(selector)
+          throw Error(`Can't replace '${signature}'. It doesn't exist in deployed diamond.`)
+        }
+      }
+      facet[2] = selectors
+    } else if (facet[1] === FacetCutAction.Add) {
+      let facetFactory = facetFactories.get(facet[0])
+      if (!facetFactory) {
+        facetFactory = await ethers.getContractFactory(facet[0])
+        facetFactories.set(facet[0], facetFactory)
+      }
+      for (const signature of facet[2]) {
+        if (!Object.prototype.hasOwnProperty.call(facetFactory.interface.functions, signature)) {
+          throw (Error(`Can't add ${signature}. It doesn't exist in ${facet[0]} source code.`))
+        }
+      }
+      for (const selector of selectors) {
+        if (inFacets(selector, existingFacets)) {
+          const signature = functions.get(selector)
+          throw Error(`Can't add '${signature}'. It already exists in deployed diamond.`)
+        }
+      }
+      facet[2] = selectors
+    } else {
+      throw (Error('Incorrect FacetCutAction value. Must be 0, 1 or 2. Value used: ' + facet[1]))
+    }
+  }
+  for (const facet of diamondCut) {
+    if (facet[1] !== FacetCutAction.Remove) {
+      console.log(`Deploying ${facet[0]}`)
+      const facetFactory = facetFactories.get(facet[0])
+      const deployedFacet = await facetFactory.deploy()
+      await deployedFacet.deployed()
+      facetFactories.set(facet[0], deployedFacet)
+      console.log(`${facet[0]} deployed: ${deployedFacet.address}`)
+      facet[0] = deployedFacet.address
+    }
+  }
+
+  let initFacetAddress = ethers.constants.AddressZero
+  let functionCall = '0x'
+  if (initFacetName !== undefined) {
+    let initFacet = facetFactories.get(initFacetName)
+    if (!initFacet) {
+      const InitFacet = await ethers.getContractFactory(initFacetName)
+      initFacet = await InitFacet.deploy()
+      await initFacet.deployed()
+      console.log('Deployed init facet: ' + initFacet.address)
+    } else {
+      console.log('Using init facet: ' + initFacet.address)
+    }
+    functionCall = initFacet.interface.encodeFunctionData('init', initArgs)
+    console.log('Function call: ')
+    console.log(functionCall)
+    initFacetAddress = initFacet.address
+  }
+
+  const result = await diamondCutFacet.diamondCut(
+    diamondCut,
+    initFacetAddress,
+    functionCall
+  )
+  console.log('------')
+  console.log('Upgrade transaction hash: ' + result.hash)
+  return result
+}
+
+async function upgradeWithNewFacets ({
+  diamondAddress,
   facetNames,
   selectorsToRemove = [],
   initFacetName = undefined,
@@ -191,6 +309,7 @@ async function upgrade ({
 
 exports.FacetCutAction = FacetCutAction
 exports.upgrade = upgrade
+exports.upgradeWithNewFacets = upgradeWithNewFacets
 exports.getSelectors = getSelectors
 exports.deployFacets = deployFacets
 exports.deploy = deploy
