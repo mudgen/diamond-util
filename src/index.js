@@ -41,7 +41,7 @@ async function deploy ({
   diamondName,
   owner,
   facetNames,
-  otherArgs
+  otherArgs = []
 }) {
   if (arguments.length === 1) {
     throw Error(`Requires only 1 map argument. ${arguments.length} arguments used.`)
@@ -88,9 +88,9 @@ function inFacets (selector, facets) {
 async function upgrade ({
   diamondAddress,
   facetNames,
-  selectorsToRemove = undefined,
+  selectorsToRemove = [],
   initFacetName = undefined,
-  initArgs = undefined
+  initArgs = []
 }) {
   if (arguments.length === 1) {
     throw Error(`Requires only 1 map argument. ${arguments.length} arguments used.`)
@@ -108,7 +108,7 @@ async function upgrade ({
     undeployed.push([name, facetFactory])
   }
 
-  if (selectorsToRemove && selectorsToRemove.length > 0) {
+  if (selectorsToRemove.length > 0) {
     // check if any selectorsToRemove are already gone
     for (const selector of selectorsToRemove) {
       if (!inFacets(selector, existingFacets)) {

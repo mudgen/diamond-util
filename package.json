@@ -1,5 +1,5 @@
 {
-  "name": "diamond",
+  "name": "diamond-util",
   "version": "1.0.4",
   "description": "Javascript library to deploy and upgrade diamonds.",
   "main": "src/index.js",
