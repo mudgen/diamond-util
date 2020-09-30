@@ -43,7 +43,7 @@ async function deploy ({
   facetNames,
   otherArgs = []
 }) {
-  if (arguments.length === 1) {
+  if (arguments.length !== 1) {
     throw Error(`Requires only 1 map argument. ${arguments.length} arguments used.`)
   }
   const facets = await deployFacets(facetNames)
@@ -91,7 +91,7 @@ async function upgrade ({
   initFacetName = undefined,
   initArgs
 }) {
-  if (arguments.length === 1) {
+  if (arguments.length !== 1) {
     throw Error(`Requires only 1 map argument. ${arguments.length} arguments used.`)
   }
   const diamondCutFacet = ethers.getContractAt('DiamondCutFacet', diamondAddress)
