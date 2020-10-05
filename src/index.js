@@ -22,17 +22,32 @@ function getSelectors (contract) {
   return selectors
 }
 
-async function deployFacets (facetNames) {
+async function deployFacets (facets) {
   console.log('--')
   const deployed = []
-  for (const name of facetNames) {
-    const facetFactory = await ethers.getContractFactory(name)
-    console.log(`Deploying ${name}`)
-    const deployedFactory = await facetFactory.deploy()
-    await deployedFactory.deployed()
-    console.log(`${name} deployed: ${deployedFactory.address}`)
-    console.log('--')
-    deployed.push([name, deployedFactory])
+  for (const facet of facets) {
+    if (Array.isArray(facet)) {
+      if (typeof facet[0] !== 'string') {
+        throw Error(`Error using facet: facet name must be a string. Bad input: ${facet[0]}`)
+      }
+      if (!(facet[1] instanceof ethers.Contract)) {
+        throw Error(`Error using facet: facet must be a Contract. Bad input: ${facet[1]}`)
+      }
+      console.log(`Using already deployed ${facet[0]}: ${facet[1].address}`)
+      console.log('--')
+      deployed.push(facet)
+    } else {
+      if (typeof facet !== 'string') {
+        throw Error(`Error deploying facet: facet name must be a string. Bad input: ${facet}`)
+      }
+      const facetFactory = await ethers.getContractFactory(facet)
+      console.log(`Deploying ${facet}`)
+      const deployedFactory = await facetFactory.deploy()
+      await deployedFactory.deployed()
+      console.log(`${facet} deployed: ${deployedFactory.address}`)
+      console.log('--')
+      deployed.push([facet, deployedFactory])
+    }
   }
   return deployed
 }
@@ -40,13 +55,13 @@ async function deployFacets (facetNames) {
 async function deploy ({
   diamondName,
   owner,
-  facetNames,
+  facets,
   otherArgs = []
 }) {
   if (arguments.length !== 1) {
     throw Error(`Requires only 1 map argument. ${arguments.length} arguments used.`)
   }
-  const facets = await deployFacets(facetNames)
+  facets = await deployFacets(facets)
   const diamondFactory = await ethers.getContractFactory(diamondName)
   const diamondCut = []
   console.log('--')
