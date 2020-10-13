@@ -199,6 +199,9 @@ async function upgrade ({
     }
   }
 
+  console.log('diamondCut arg:')
+  console.log(diamondCut)
+
   let initFacetAddress = ethers.constants.AddressZero
   let functionCall = '0x'
   if (initFacetName !== undefined) {
@@ -220,7 +223,8 @@ async function upgrade ({
   const result = await diamondCutFacet.diamondCut(
     diamondCut,
     initFacetAddress,
-    functionCall
+    functionCall,
+    txArgs
   )
   console.log('------')
   console.log('Upgrade transaction hash: ' + result.hash)
