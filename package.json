@@ -1,6 +1,6 @@
 {
   "name": "diamond-util",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "Javascript library to deploy and upgrade diamonds.",
   "main": "src/index.js",
   "scripts": {
