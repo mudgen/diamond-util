@@ -54,8 +54,8 @@ async function deployFacets (facets) {
 
 async function deploy ({
   diamondName,
-  owner,
   facets,
+  owner,
   otherArgs = []
 }) {
   if (arguments.length !== 1) {
@@ -103,14 +103,15 @@ function inFacets (selector, facets) {
 async function upgrade ({
   diamondAddress,
   diamondCut,
+  txArgs = {},
   initFacetName = undefined,
   initArgs
 }) {
   if (arguments.length !== 1) {
     throw Error(`Requires only 1 map argument. ${arguments.length} arguments used.`)
   }
-  const diamondCutFacet = ethers.getContractAt('DiamondCutFacet', diamondAddress)
-  const diamondLoupeFacet = ethers.getContractAt('DiamondLoupeFacet', diamondAddress)
+  const diamondCutFacet = await ethers.getContractAt('DiamondCutFacet', diamondAddress)
+  const diamondLoupeFacet = await ethers.getContractAt('DiamondLoupeFacet', diamondAddress)
   const existingFacets = await diamondLoupeFacet.facets()
   const facetFactories = new Map()
 
@@ -178,14 +179,22 @@ async function upgrade ({
       throw (Error('Incorrect FacetCutAction value. Must be 0, 1 or 2. Value used: ' + facet[1]))
     }
   }
+  // deploying new facets
+  const alreadDeployed = new Map()
   for (const facet of diamondCut) {
     if (facet[1] !== FacetCutAction.Remove) {
+      const existingAddress = alreadDeployed.get(facet[0])
+      if (existingAddress) {
+        facet[0] = existingAddress
+        continue
+      }
       console.log(`Deploying ${facet[0]}`)
       const facetFactory = facetFactories.get(facet[0])
       const deployedFacet = await facetFactory.deploy()
       await deployedFacet.deployed()
       facetFactories.set(facet[0], deployedFacet)
       console.log(`${facet[0]} deployed: ${deployedFacet.address}`)
+      alreadDeployed.set(facet[0], deployedFacet.address)
       facet[0] = deployedFacet.address
     }
   }
@@ -228,8 +237,8 @@ async function upgradeWithNewFacets ({
   if (arguments.length === 1) {
     throw Error(`Requires only 1 map argument. ${arguments.length} arguments used.`)
   }
-  const diamondCutFacet = ethers.getContractAt('DiamondCutFacet', diamondAddress)
-  const diamondLoupeFacet = ethers.getContractAt('DiamondLoupeFacet', diamondAddress)
+  const diamondCutFacet = await ethers.getContractAt('DiamondCutFacet', diamondAddress)
+  const diamondLoupeFacet = await ethers.getContractAt('DiamondLoupeFacet', diamondAddress)
 
   const diamondCut = []
   const existingFacets = await diamondLoupeFacet.facets()
