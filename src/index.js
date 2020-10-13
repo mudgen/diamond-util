@@ -226,6 +226,11 @@ async function upgrade ({
     functionCall,
     txArgs
   )
+  const receipt = await result.wait()
+  if (!receipt.status) {
+    console.log('TRANSACTION FAILED!!! -------------------------------------------')
+    console.log('See block explorer app for details.')
+  }
   console.log('------')
   console.log('Upgrade transaction hash: ' + result.hash)
   return result
