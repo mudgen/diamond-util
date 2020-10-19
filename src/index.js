@@ -85,11 +85,12 @@ async function deploy ({
     ...otherArgs
   ]
   const deployedDiamond = await diamondFactory.deploy(...constructorArguments)
-  const result = await deployedDiamond.deployed()
-  console.log(result)
+  await deployedDiamond.deployed()
+  const result = deployedDiamond.deployTransaction.wait()
+
   console.log(`${diamondName} deployed: ${deployedDiamond.address}`)
   console.log(`${diamondName} constructor arguments:`)
-  console.log(constructorArguments)
+  console.log(JSON.stringify(constructorArguments, null, 4))
   if (!result.status) {
     console.log('TRANSACTION FAILED!!! -------------------------------------------')
     console.log('See block explorer app for details.')
