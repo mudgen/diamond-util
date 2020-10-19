@@ -86,7 +86,7 @@ async function deploy ({
   ]
   const deployedDiamond = await diamondFactory.deploy(...constructorArguments)
   await deployedDiamond.deployed()
-  const result = deployedDiamond.deployTransaction.wait()
+  const result = await deployedDiamond.deployTransaction.wait()
 
   console.log(`${diamondName} deployed: ${deployedDiamond.address}`)
   console.log(`${diamondName} constructor arguments:`)
