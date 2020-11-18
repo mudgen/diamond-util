@@ -55,8 +55,7 @@ async function deployFacets (facets) {
 async function deploy ({
   diamondName,
   facets,
-  owner,
-  otherArgs = []
+  args = []
 }) {
   if (arguments.length !== 1) {
     throw Error(`Requires only 1 map argument. ${arguments.length} arguments used.`)
@@ -79,11 +78,11 @@ async function deploy ({
   }
   console.log('--')
   console.log(`Deploying ${diamondName}`)
-  const constructorArguments = [
-    diamondCut,
-    owner,
-    ...otherArgs
-  ]
+  const constructorArguments = [diamondCut]
+  if (args.length > 0) {
+    constructorArguments.push(args)
+  }
+
   const deployedDiamond = await diamondFactory.deploy(...constructorArguments)
   await deployedDiamond.deployed()
   const result = await deployedDiamond.deployTransaction.wait()
@@ -129,6 +128,24 @@ async function upgrade ({
     const functions = new Map()
     const selectors = []
     console.log('Facet: ' + facet)
+    let facetName
+    let contract
+    if (Array.isArray(facet[0])) {
+      facetName = facet[0][0]
+      contract = facet[0][1]
+      if (!(typeof facetName === 'string')) {
+        throw Error('First value in facet[0] array must be a string.')
+      }
+      if (!(contract instanceof ethers.Contract)) {
+        throw Error('Second value in facet[0] array must be a Contract object.')
+      }
+      facet[0] = facetName
+    } else {
+      facetName = facet[0]
+      if (!(typeof facetName === 'string') && facetName) {
+        throw Error('facet[0] must be a string or an array or false.')
+      }
+    }
     for (const signature of facet[2]) {
       const selector = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(signature)).slice(0, 10)
       console.log(`Function: ${selector} ${signature}`)
@@ -137,8 +154,8 @@ async function upgrade ({
     }
     console.log('')
     if (facet[1] === FacetCutAction.Remove) {
-      if (facet[0]) {
-        throw (Error(`Can't remove functions because facet name must have a false value not ${facet[0]}.`))
+      if (facetName) {
+        throw (Error(`Can't remove functions because facet name must have a false value not ${facetName}.`))
       }
       facet[0] = ethers.constants.AddressZero
       for (const selector of selectors) {
@@ -149,14 +166,18 @@ async function upgrade ({
       }
       facet[2] = selectors
     } else if (facet[1] === FacetCutAction.Replace) {
-      let facetFactory = facetFactories.get(facet[0])
+      let facetFactory = facetFactories.get(facetName)
       if (!facetFactory) {
-        facetFactory = await ethers.getContractFactory(facet[0])
-        facetFactories.set(facet[0], facetFactory)
+        if (contract) {
+          facetFactories.set(facetName, contract)
+        } else {
+          facetFactory = await ethers.getContractFactory(facetName)
+          facetFactories.set(facetName, facetFactory)
+        }
       }
       for (const signature of facet[2]) {
         if (!Object.prototype.hasOwnProperty.call(facetFactory.interface.functions, signature)) {
-          throw (Error(`Can't replace '${signature}'. It doesn't exist in ${facet[0]} source code.`))
+          throw (Error(`Can't replace '${signature}'. It doesn't exist in ${facetName} source code.`))
         }
       }
       for (const selector of selectors) {
@@ -167,14 +188,18 @@ async function upgrade ({
       }
       facet[2] = selectors
     } else if (facet[1] === FacetCutAction.Add) {
-      let facetFactory = facetFactories.get(facet[0])
+      let facetFactory = facetFactories.get(facetName)
       if (!facetFactory) {
-        facetFactory = await ethers.getContractFactory(facet[0])
-        facetFactories.set(facet[0], facetFactory)
+        if (contract) {
+          facetFactories.set(facetName, contract)
+        } else {
+          facetFactory = await ethers.getContractFactory(facetName)
+          facetFactories.set(facetName, facetFactory)
+        }
       }
       for (const signature of facet[2]) {
         if (!Object.prototype.hasOwnProperty.call(facetFactory.interface.functions, signature)) {
-          throw (Error(`Can't add ${signature}. It doesn't exist in ${facet[0]} source code.`))
+          throw (Error(`Can't add ${signature}. It doesn't exist in ${facetName} source code.`))
         }
       }
       for (const selector of selectors) {
@@ -199,8 +224,11 @@ async function upgrade ({
       }
       console.log(`Deploying ${facet[0]}`)
       const facetFactory = facetFactories.get(facet[0])
-      const deployedFacet = await facetFactory.deploy()
-      await deployedFacet.deployed()
+      let deployedFacet = facetFactory
+      if (!(deployedFacet instanceof ethers.Contract)) {
+        deployedFacet = await facetFactory.deploy()
+        await deployedFacet.deployed()
+      }
       facetFactories.set(facet[0], deployedFacet)
       console.log(`${facet[0]} deployed: ${deployedFacet.address}`)
       alreadDeployed.set(facet[0], deployedFacet.address)
