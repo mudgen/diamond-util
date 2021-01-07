@@ -55,7 +55,8 @@ async function deployFacets (facets) {
 async function deploy ({
   diamondName,
   facets,
-  args = []
+  args = [],
+  overrides = {}
 }) {
   if (arguments.length !== 1) {
     throw Error(`Requires only 1 map argument. ${arguments.length} arguments used.`)
@@ -83,7 +84,7 @@ async function deploy ({
     constructorArguments.push(args)
   }
 
-  const deployedDiamond = await diamondFactory.deploy(...constructorArguments)
+  const deployedDiamond = await diamondFactory.deploy(...constructorArguments, overrides)
   await deployedDiamond.deployed()
   const result = await deployedDiamond.deployTransaction.wait()
 
