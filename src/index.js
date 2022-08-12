@@ -70,7 +70,7 @@ async function deploy ({
     throw Error(`Requires only 1 map argument. ${arguments.length} arguments used.`)
   }
   const log = getLogger(silenceLogs);
-  facets = await deployFacets(facets)
+  facets = await deployFacets(facets, silenceLogs)
   const diamondFactory = await ethers.getContractFactory(diamondName)
   const diamondCut = []
   log('--')
