@@ -6,6 +6,12 @@ const FacetCutAction = {
   Remove: 2
 }
 
+// supports optional logging. returns
+// a noop if logging is silenced
+function getLogger(silenced = false) {
+  return silenced ? function () {} : console.log;
+}
+
 // eslint-disable-next-line no-unused-vars
 function getSignatures (contract) {
   return Object.keys(contract.interface.functions)
@@ -22,8 +28,9 @@ function getSelectors (contract) {
   return selectors
 }
 
-async function deployFacets (facets) {
-  console.log('--')
+async function deployFacets (facets, silenceLogs = false) {
+  const log = getLogger(silenceLogs);
+  log('--')
   const deployed = []
   for (const facet of facets) {
     if (Array.isArray(facet)) {
@@ -33,19 +40,19 @@ async function deployFacets (facets) {
       if (!(facet[1] instanceof ethers.Contract)) {
         throw Error(`Error using facet: facet must be a Contract. Bad input: ${facet[1]}`)
       }
-      console.log(`Using already deployed ${facet[0]}: ${facet[1].address}`)
-      console.log('--')
+      log(`Using already deployed ${facet[0]}: ${facet[1].address}`)
+      log('--')
       deployed.push(facet)
     } else {
       if (typeof facet !== 'string') {
         throw Error(`Error deploying facet: facet name must be a string. Bad input: ${facet}`)
       }
       const facetFactory = await ethers.getContractFactory(facet)
-      console.log(`Deploying ${facet}`)
+      log(`Deploying ${facet}`)
       const deployedFactory = await facetFactory.deploy()
       await deployedFactory.deployed()
-      console.log(`${facet} deployed: ${deployedFactory.address}`)
-      console.log('--')
+      log(`${facet} deployed: ${deployedFactory.address}`)
+      log('--')
       deployed.push([facet, deployedFactory])
     }
   }
@@ -55,30 +62,32 @@ async function deployFacets (facets) {
 async function deploy ({
   diamondName,
   facets,
+  silenceLogs = false,
   args = [],
   overrides = {}
 }) {
   if (arguments.length !== 1) {
     throw Error(`Requires only 1 map argument. ${arguments.length} arguments used.`)
   }
-  facets = await deployFacets(facets)
+  const log = getLogger(silenceLogs);
+  facets = await deployFacets(facets, silenceLogs)
   const diamondFactory = await ethers.getContractFactory(diamondName)
   const diamondCut = []
-  console.log('--')
-  console.log('Setting up diamondCut args')
-  console.log('--')
+  log('--')
+  log('Setting up diamondCut args')
+  log('--')
   for (const [name, deployedFacet] of facets) {
-    console.log(name)
-    console.log(getSignatures(deployedFacet))
-    console.log('--')
+    log(name)
+    log(getSignatures(deployedFacet))
+    log('--')
     diamondCut.push([
       deployedFacet.address,
       FacetCutAction.Add,
       getSelectors(deployedFacet)
     ])
   }
-  console.log('--')
-  console.log(`Deploying ${diamondName}`)
+  log('--')
+  log(`Deploying ${diamondName}`)
   const constructorArguments = [diamondCut]
   if (args.length > 0) {
     constructorArguments.push(args)
@@ -88,15 +97,15 @@ async function deploy ({
   await deployedDiamond.deployed()
   const result = await deployedDiamond.deployTransaction.wait()
 
-  console.log(`${diamondName} deployed: ${deployedDiamond.address}`)
-  console.log(`${diamondName} constructor arguments:`)
-  console.log(JSON.stringify(constructorArguments, null, 4))
+  log(`${diamondName} deployed: ${deployedDiamond.address}`)
+  log(`${diamondName} constructor arguments:`)
+  log(JSON.stringify(constructorArguments, null, 4))
   if (!result.status) {
-    console.log('TRANSACTION FAILED!!! -------------------------------------------')
-    console.log('See block explorer app for details.')
+    log('TRANSACTION FAILED!!! -------------------------------------------')
+    log('See block explorer app for details.')
   }
-  console.log('Transaction hash:' + deployedDiamond.deployTransaction.hash)
-  console.log('--')
+  log('Transaction hash:' + deployedDiamond.deployTransaction.hash)
+  log('--')
   return deployedDiamond
 }
 
@@ -113,22 +122,24 @@ async function upgrade ({
   diamondAddress,
   diamondCut,
   txArgs = {},
+  silenceLogs = false,
   initFacetName = undefined,
   initArgs
 }) {
   if (arguments.length !== 1) {
     throw Error(`Requires only 1 map argument. ${arguments.length} arguments used.`)
   }
+  const log = getLogger(silenceLogs);
   const diamondCutFacet = await ethers.getContractAt('DiamondCutFacet', diamondAddress)
   const diamondLoupeFacet = await ethers.getContractAt('DiamondLoupeFacet', diamondAddress)
   const existingFacets = await diamondLoupeFacet.facets()
   const facetFactories = new Map()
 
-  console.log('Facet Signatures and Selectors: ')
+  log('Facet Signatures and Selectors: ')
   for (const facet of diamondCut) {
     const functions = new Map()
     const selectors = []
-    console.log('Facet: ' + facet)
+    log('Facet: ' + facet)
     let facetName
     let contract
     if (Array.isArray(facet[0])) {
@@ -149,11 +160,11 @@ async function upgrade ({
     }
     for (const signature of facet[2]) {
       const selector = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(signature)).slice(0, 10)
-      console.log(`Function: ${selector} ${signature}`)
+      log(`Function: ${selector} ${signature}`)
       selectors.push(selector)
       functions.set(selector, signature)
     }
-    console.log('')
+    log('')
     if (facet[1] === FacetCutAction.Remove) {
       if (facetName) {
         throw (Error(`Can't remove functions because facet name must have a false value not ${facetName}.`))
@@ -223,7 +234,7 @@ async function upgrade ({
         facet[0] = existingAddress
         continue
       }
-      console.log(`Deploying ${facet[0]}`)
+      log(`Deploying ${facet[0]}`)
       const facetFactory = facetFactories.get(facet[0])
       let deployedFacet = facetFactory
       if (!(deployedFacet instanceof ethers.Contract)) {
@@ -231,14 +242,14 @@ async function upgrade ({
         await deployedFacet.deployed()
       }
       facetFactories.set(facet[0], deployedFacet)
-      console.log(`${facet[0]} deployed: ${deployedFacet.address}`)
+      log(`${facet[0]} deployed: ${deployedFacet.address}`)
       alreadDeployed.set(facet[0], deployedFacet.address)
       facet[0] = deployedFacet.address
     }
   }
 
-  console.log('diamondCut arg:')
-  console.log(diamondCut)
+  log('diamondCut arg:')
+  log(diamondCut)
 
   let initFacetAddress = ethers.constants.AddressZero
   let functionCall = '0x'
@@ -248,13 +259,13 @@ async function upgrade ({
       const InitFacet = await ethers.getContractFactory(initFacetName)
       initFacet = await InitFacet.deploy()
       await initFacet.deployed()
-      console.log('Deployed init facet: ' + initFacet.address)
+      log('Deployed init facet: ' + initFacet.address)
     } else {
-      console.log('Using init facet: ' + initFacet.address)
+      log('Using init facet: ' + initFacet.address)
     }
     functionCall = initFacet.interface.encodeFunctionData('init', initArgs)
-    console.log('Function call: ')
-    console.log(functionCall)
+    log('Function call: ')
+    log(functionCall)
     initFacetAddress = initFacet.address
   }
 
@@ -266,11 +277,11 @@ async function upgrade ({
   )
   const receipt = await result.wait()
   if (!receipt.status) {
-    console.log('TRANSACTION FAILED!!! -------------------------------------------')
-    console.log('See block explorer app for details.')
+    log('TRANSACTION FAILED!!! -------------------------------------------')
+    log('See block explorer app for details.')
   }
-  console.log('------')
-  console.log('Upgrade transaction hash: ' + result.hash)
+  log('------')
+  log('Upgrade transaction hash: ' + result.hash)
   return result
 }
 
@@ -278,12 +289,14 @@ async function upgradeWithNewFacets ({
   diamondAddress,
   facetNames,
   selectorsToRemove = [],
+  silenceLogs = false,
   initFacetName = undefined,
   initArgs = []
 }) {
   if (arguments.length === 1) {
     throw Error(`Requires only 1 map argument. ${arguments.length} arguments used.`)
   }
+  const log = getLogger(silenceLogs);
   const diamondCutFacet = await ethers.getContractAt('DiamondCutFacet', diamondAddress)
   const diamondLoupeFacet = await ethers.getContractAt('DiamondLoupeFacet', diamondAddress)
 
@@ -292,7 +305,7 @@ async function upgradeWithNewFacets ({
   const undeployed = []
   const deployed = []
   for (const name of facetNames) {
-    console.log(name)
+    log(name)
     const facetFactory = await ethers.getContractFactory(name)
     undeployed.push([name, facetFactory])
   }
@@ -312,14 +325,14 @@ async function upgradeWithNewFacets ({
   }
 
   for (const [name, facetFactory] of undeployed) {
-    console.log(`Deploying ${name}`)
+    log(`Deploying ${name}`)
     deployed.push([name, await facetFactory.deploy()])
   }
 
   for (const [name, deployedFactory] of deployed) {
     await deployedFactory.deployed()
-    console.log('--')
-    console.log(`${name} deployed: ${deployedFactory.address}`)
+    log('--')
+    log(`${name} deployed: ${deployedFactory.address}`)
     const add = []
     const replace = []
     for (const selector of getSelectors(deployedFactory)) {
@@ -340,9 +353,9 @@ async function upgradeWithNewFacets ({
       ])
     }
   }
-  console.log('diamondCut arg:')
-  console.log(diamondCut)
-  console.log('------')
+  log('diamondCut arg:')
+  log(diamondCut)
+  log('------')
 
   let initFacetAddress = ethers.constants.AddressZero
   let functionCall = '0x'
@@ -358,13 +371,13 @@ async function upgradeWithNewFacets ({
       const InitFacet = await ethers.getContractFactory(initFacetName)
       initFacet = await InitFacet.deploy()
       await initFacet.deployed()
-      console.log('Deployed init facet: ' + initFacet.address)
+      log('Deployed init facet: ' + initFacet.address)
     } else {
-      console.log('Using init facet: ' + initFacet.address)
+      log('Using init facet: ' + initFacet.address)
     }
     functionCall = initFacet.interface.encodeFunctionData('init', initArgs)
-    console.log('Function call: ')
-    console.log(functionCall)
+    log('Function call: ')
+    log(functionCall)
     initFacetAddress = initFacet.address
   }
 
@@ -373,8 +386,8 @@ async function upgradeWithNewFacets ({
     initFacetAddress,
     functionCall
   )
-  console.log('------')
-  console.log('Upgrade transaction hash: ' + result.hash)
+  log('------')
+  log('Upgrade transaction hash: ' + result.hash)
   return result
 }
 
